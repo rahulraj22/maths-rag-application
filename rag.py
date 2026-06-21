@@ -6,10 +6,6 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
-from langchain_docling import DoclingLoader
-from docling.document_converter import DocumentConverter, PdfFormatOption
-from docling.datamodel.pipeline_options import PdfPipelineOptions
-from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 
 load_dotenv()
 
@@ -35,6 +31,11 @@ Context from course notes:
 
 
 def _build_loader():
+    from langchain_docling import DoclingLoader
+    from docling.document_converter import DocumentConverter, PdfFormatOption
+    from docling.datamodel.pipeline_options import PdfPipelineOptions
+    from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
+
     pipeline_options = PdfPipelineOptions(
         do_ocr=False,
         do_formula_enrichment=False,
