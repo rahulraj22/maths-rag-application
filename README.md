@@ -1,14 +1,14 @@
 # ✦ Maths RAG application
-![alt text](image-1.png)
+![alt text](images/image-1.png)
 > A conversational AI tutor that lets you ask questions around Maths chapters (e.g. linear transformations and linear algebra) - powered by your own course notes, not just the model's memory.
 
 ---
 
 ## ✦ What is this?
-![alt text](image.png)
+![alt text](images/image.png)
 Point any math PDF at it - linear algebra, calculus, real analysis, probability, whatever you're studying - and it becomes a conversational tutor for that material. Ask follow-up questions, request proofs, ask for examples. It remembers what you discussed earlier in the conversation.
 
-The key difference from just asking ChatGPT is that every answer is grounded in your actual course notes. The model only tells you what's in the document, and says so clearly if something isn't covered there.
+The key difference from just asking ChatGPT is that every answer is grounded in your actual course notes. The model only tells you what's in the document, and says so clearly if something isn't covered fthere.
 
 `Note`: Currently its knowledge corpus is limited to `lintransf.pdf`, later we will allow pdf upload and on the go vector embeddings and user's can ask any questions out of it.
 
@@ -49,7 +49,7 @@ PDF (lintransf.pdf)
 - **Cached parsing** - the PDF is parsed once and saved to `docs_cache.pkl`; subsequent runs skip parsing entirely and load in seconds
 - **Clear history** - one-click button in the sidebar to reset the conversation
 - **LangSmith Integration for Observability**
-![alt text](image-2.png)
+![alt text](images/image-2.png)
 ---
 
 ## ✦ Project structure
