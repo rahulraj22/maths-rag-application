@@ -3,11 +3,9 @@ import pickle
 
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_chroma import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
-from operator import itemgetter
-
 from langchain_docling import DoclingLoader
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.pipeline_options import PdfPipelineOptions
@@ -18,7 +16,7 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FILE_PATH = os.path.join(BASE_DIR, "lintransf.pdf")
 CACHE_FILE = os.path.join(BASE_DIR, "docs_cache.pkl")
-VECTOR_DB_DIR = os.path.join(BASE_DIR, "chroma_db")
+FAISS_INDEX_DIR = os.path.join(BASE_DIR, "faiss_index")
 
 SYSTEM_PROMPT = """You are a helpful math tutor specializing in linear algebra and linear transformations.
 Answer the question using only the provided context from the course notes.
@@ -79,10 +77,14 @@ def _clean_metadata(docs):
 
 def _build_vectorstore(docs):
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-    if os.path.exists(VECTOR_DB_DIR):
-        return Chroma(persist_directory=VECTOR_DB_DIR, embedding_function=embeddings)
+    if os.path.exists(FAISS_INDEX_DIR):
+        return FAISS.load_local(
+            FAISS_INDEX_DIR, embeddings, allow_dangerous_deserialization=True
+        )
     clean_docs = _clean_metadata(docs)
-    return Chroma.from_documents(clean_docs, embeddings, persist_directory=VECTOR_DB_DIR)
+    vectorstore = FAISS.from_documents(clean_docs, embeddings)
+    vectorstore.save_local(FAISS_INDEX_DIR)
+    return vectorstore
 
 
 def build_vectorstore():
@@ -90,26 +92,24 @@ def build_vectorstore():
     return _build_vectorstore(docs)
 
 
-def get_all_headings(vectorstore: Chroma) -> list[str]:
-    """Return sorted list of unique section headings stored in the vector DB."""
-    data = vectorstore._collection.get(include=["metadatas"])
+def get_all_headings(vectorstore: FAISS) -> list[str]:
+    """Return sorted list of unique section headings stored in the vector index."""
+    docs = vectorstore.docstore._dict.values()
     headings = sorted(
-        {m["heading"] for m in data["metadatas"] if m.get("heading")}
+        {doc.metadata.get("heading", "") for doc in docs if doc.metadata.get("heading")}
     )
     return headings
 
 
 def retrieve(
-    vectorstore: Chroma,
+    vectorstore: FAISS,
     query: str,
     k: int = 5,
     headings: list[str] | None = None,
 ) -> str:
     """Run similarity search with an optional heading filter, return formatted context."""
-    search_kwargs: dict = {"k": k}
-    if headings:
-        search_kwargs["filter"] = {"heading": {"$in": headings}}
-    docs = vectorstore.similarity_search(query, **search_kwargs)
+    filter_fn = (lambda meta: meta.get("heading") in headings) if headings else None
+    docs = vectorstore.similarity_search(query, k=k, filter=filter_fn)
     return "\n\n".join(doc.page_content for doc in docs)
 
 
@@ -124,33 +124,3 @@ def build_llm_chain():
     ])
 
     return prompt | llm | StrOutputParser()
-
-
-# Convenience wrapper kept for backward compatibility
-def build_rag_chain():
-    docs = _load_docs()
-    vectorstore = _build_vectorstore(docs)
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-
-    llm = ChatOpenAI(model="gpt-4o-mini", streaming=True)
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", SYSTEM_PROMPT),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{question}"),
-    ])
-
-    def format_docs(docs):
-        return "\n\n".join(doc.page_content for doc in docs)
-
-    chain = (
-        {
-            "context": itemgetter[str]("question") | retriever | format_docs,
-            "question": itemgetter[str]("question"),
-            "chat_history": itemgetter[str]("chat_history"),
-        }
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-    return chain

@@ -1,6 +1,6 @@
 streamlit
 langchain-core
 langchain-openai
-langchain-chroma
+langchain-community
+faiss-cpu
 python-dotenv
-chromadb
